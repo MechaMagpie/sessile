@@ -1,0 +1,6 @@
+X "dup" -> X X
+X Y "swap" -> Y X
+X "pop" ->
+int(X) "succ" -> succ(X)
+int(X) "pred" -> pred(X)
+X "." -> print(X)
