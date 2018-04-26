@@ -41,9 +41,6 @@ def take(n, list):
     except:
         raise Exception('List too short')
 
-class UserInterrupt(Exception):
-    pass
-
 class Rule(object):
     def __init__(self, lhs, rhs, label = None):
         self.label = label

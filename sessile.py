@@ -36,38 +36,65 @@ Built-in functions:
 '''
 
 from parser import parse_term, parse_rules
-from rule import cons, flatten, UserInterrupt
-from builtin import default_named as start_table
+from rule import cons, flatten
+from builtin import default_named as start_table, UserInterrupt, PrependCondition
 import argparse
 
 def run(named_rules, rules, stack, input):
-    while True:
-        try:
-            rule, args, res_stack = next((rule, *match) for rule, match in
-                                         ((rule, rule.match(stack))
-                                          for rule in rules) if match)
-            stack = rule.apply(args, res_stack)
-        except StopIteration:
-            stack = cons(next(input), stack)
-
-def run_batch(named_rules, rules, stack, input):
     try:
-        stack = run(named_rules, rules, stack, input)
+        while True:
+            try:
+                rule, args, res_stack = next((rule, *match) for rule, match in
+                                             ((rule, rule.match(stack))
+                                              for rule in rules) if match)
+                try:
+                    stack = rule.apply(args, res_stack)
+                except PrependCondition as prep:
+                    stack = prep.stack
+                    input.prepend(prep.prepend)
+            except StopIteration:
+                try:
+                    stack = cons(next(input), stack)
+                except KeyboardInterrupt:
+                    raise UserInterrupt(*reversed(flatten(stack)))
     except StopIteration:
         return stack
 
+def run_batch(named_rules, rules, stack, input):
+    stack = run(named_rules, rules, stack, input)
+    return stack
+
 def run_interactive(named_rules, rules, seperator):
     stack = None
-    def input_generator(seperator):
-        while True:
-            line = input()
-            for token in line.split(seperator):
-                yield token
+    input = PrependableGenerator(input_generator(seperator))
     try:
-        stack = run(named_rules, rules, stack, input_generator(seperator))
-    except (UserInterrupt, KeyboardInterrupt):
-        print('[' + ', '.join(reversed(flatten(stack))) + ']')
+        run(named_rules, rules, stack, input)
+    except UserInterrupt as err:
+        print('[' + ', '.join(err.args) + ']')
 
+class PrependableGenerator():
+    def __init__(self, base_gen):
+        self.base_gen = base_gen
+        self.but_first = []
+
+    def prepend(self, seq):
+        self.but_first += reversed(seq)
+
+    def __next__(self):
+        if self.but_first:
+            return self.but_first.pop()
+        else:
+            return next(base_gen)
+
+    def __iter__(self):
+        return self
+
+def input_generator(seperator):
+    while True:
+        line = input()
+        for token in line.split(seperator):
+            yield token
+        
 def token_generator(file, sep):
     if sep:
         for line in file:
@@ -90,7 +117,7 @@ args = parser.parse_args()
 patterns, rules = start_table, []
 for sourcefile in args.source:
     new_patterns, new_rules = parse_rules(sourcefile.read(), patterns)
-    patterns = {**patterns, **new_patterns}
+    patterns.update(new_patterns)
     rules += new_rules
 if args.interactive:
     seperator = args.seperator if args.seperator else ' '
