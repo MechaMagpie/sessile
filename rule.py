@@ -57,21 +57,24 @@ class Var(object):
         return type(self) == type(other) and self.value == other.value
 
     def __hash__(self):
-        hash(type(self).hash_prefix + self.value)
+        return hash(type(self).hash_prefix + self.value)
 
 class Unbound(Var):
     hash_prefix = '_'
 
 class Bound(Var):
     hash_prefix = '#'
+
+    def __str__(self):
+        return f'"{self.value}"'
+    
+def _unbound(ls):
+    return [name for name in ls if isinstance(name, Unbound)]
+
+def _bound(ls):
+    return [name for name in ls if isinstance(name, Bound)]
     
 class Rule(object):
-    @staticmethod
-    def _unbound(ls):
-        return [name for name in ls if isinstance(name, Unbound)]
-    @staticmethod
-    def _bound(ls):
-        return [name for name in ls if isinstance(name, Bound)]
     
     def __init__(self, lhs, rhs, label = None):
         self.label = label
@@ -82,8 +85,7 @@ class Rule(object):
             return OrderedDict.fromkeys([name for _, *names in ls
                                          for name in names]).keys()
         self.lhs_names = var_names(lhs)
-        self.rhs_names = [name for name in var_names(rhs)
-                          if name in self.lhs_names]
+        self.rhs_names = var_names(rhs)
         self.lhs_param = _unbound(self.lhs_names)
         self.rhs_param = _unbound(self.rhs_names)
         assert(set(self.lhs_param) >= set(self.rhs_param))
@@ -141,7 +143,7 @@ class Rule(object):
         mat = inner_match(self.lhs, stack, init_bindings)
         if mat:
             binding, new_stack = mat
-            return [binding[name] for name in self.rhs_param]
+            return ([binding[name] for name in self.rhs_param], new_stack)
         else:
             return None
 
@@ -219,4 +221,4 @@ class FreeVar(Rule):
 
     @overrides
     def _str(self, vars):
-        return vars[0]
+        return str(vars[0])

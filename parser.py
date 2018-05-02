@@ -15,7 +15,7 @@ def parse_term(text, fun_ref):
     if string:
         return (LiteralString(string.group(1)),)
     elif freevar:
-        return (FreeVar(), *freevar.group(1))
+        return (FreeVar(), Unbound(freevar.group(1)[0]))
     elif pattern:
         name = pattern.group(1)
         correct_pattern = next(fun for fun in fun_ref[name]
@@ -30,7 +30,7 @@ def parse_term(text, fun_ref):
             except:
                 var = Unbound(raw_var)
             vars.append(var)
-        if len(vars and isinstance(vars[0], Unbound)) == 1:
+        if len(vars) == 1 and isinstance(vars[0], Unbound):
             return (fun_ref[name][0], *vars)
         else:
             correct_fun = next(fun for fun in fun_ref[name]
