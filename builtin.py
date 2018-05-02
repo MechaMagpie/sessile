@@ -101,8 +101,11 @@ cat = BuiltInRule(name = 'cat', arity = any_arity, apply = concatenate)
 def arith_processor(f = False):
     import operator
     def eval_arith(self, values, stack):
-        [expr] = values
-        ops = expr.split(' ')
+        try:
+            [expr] = values
+            ops = expr.split(' ')
+        except:
+            ops = values
         temp_stack = []
         for op in ops:
             try:
@@ -130,6 +133,7 @@ def arith_tester(f = False):
                     count -= 1
                 else:
                     raise Exception('wut')
+                assert(count >= 1)
             assert(count == 1)
             return ([expr], cdr(stack))
         except:

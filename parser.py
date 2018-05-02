@@ -1,4 +1,4 @@
-from rule import Rule, PlaceHolderRule, LiteralString, FreeVar
+from rule import Bound, Unbound, Rule, PlaceHolderRule, LiteralString, FreeVar
 
 import re
 
@@ -7,7 +7,9 @@ def parse_term(text, fun_ref):
             [re.fullmatch(ex, text) for ex in
             [r'"(.*)"',
              r'([a-z][a-z0-9]*)',
-             r'([a-z][a-z0-9]*)\(((?:[A-Z]+)(?:\,\s+[A-Z]+)*)\)',
+             r'([a-z][a-z0-9]*)\(((?:(?:[A-Z]+)|(?:\".*\"))' +
+             r'(?:\,\s+(?:(?:[A-Z]+)|(?:\".*\")))*)\)',
+             # Terribly sorry about the mess
              r'([A-Z]+)'
          ]]
     if string:
@@ -21,8 +23,14 @@ def parse_term(text, fun_ref):
         return (correct_pattern,)
     elif fun:
         name = fun.group(1)
-        vars = re.split(r'\,\s', fun.group(2))
-        if len(vars) == 1:
+        vars = []
+        for raw_var in re.split(r'\,\s', fun.group(2)):
+            try:
+                var = Bound(re.fullmatch(r'\"(.*)\"', raw_var).group(1))
+            except:
+                var = Unbound(raw_var)
+            vars.append(var)
+        if len(vars and isinstance(vars[0], Unbound)) == 1:
             return (fun_ref[name][0], *vars)
         else:
             correct_fun = next(fun for fun in fun_ref[name]
@@ -62,7 +70,8 @@ def parse_rules(input, named_rules = {}):
                 new_ls = [(rule, *args) if not isinstance(rule, PlaceHolderRule)
                         else (new_rule, *args) for (rule, *args) in ls]
                 assert not any(rule.arity != len(args)
-                               and not (rule.arity >= 1 and len(args) == 1)
+                               and not (rule.arity >= 1 and len(args) == 1
+                                        and isinstance(args[0], Unbound))
                                for (rule, *args) in new_ls)
                 return new_ls
             new_rule.lhs = subst(new_rule.lhs)

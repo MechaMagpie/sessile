@@ -41,7 +41,38 @@ def take(n, list):
     except:
         raise Exception('List too short')
 
+class Var(object):
+    hash_prefix = ''
+    
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return self.value
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self.value})"
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.value == other.value
+
+    def __hash__(self):
+        hash(type(self).hash_prefix + self.value)
+
+class Unbound(Var):
+    hash_prefix = '_'
+
+class Bound(Var):
+    hash_prefix = '#'
+    
 class Rule(object):
+    @staticmethod
+    def _unbound(ls):
+        return [name for name in ls if isinstance(name, Unbound)]
+    @staticmethod
+    def _bound(ls):
+        return [name for name in ls if isinstance(name, Bound)]
+    
     def __init__(self, lhs, rhs, label = None):
         self.label = label
         self.lhs = lhs
@@ -53,8 +84,10 @@ class Rule(object):
         self.lhs_names = var_names(lhs)
         self.rhs_names = [name for name in var_names(rhs)
                           if name in self.lhs_names]
-        assert(set(self.lhs_names) >= set(self.rhs_names))
-        self.arity = len(self.rhs_names)
+        self.lhs_param = _unbound(self.lhs_names)
+        self.rhs_param = _unbound(self.rhs_names)
+        assert(set(self.lhs_param) >= set(self.rhs_param))
+        self.arity = len(self.rhs_param)
         self.choices = [self]
         
     def __str__(self):
@@ -68,7 +101,7 @@ class Rule(object):
 
     def _str(self, args):
         if self.arity:
-            return f"{self.label}({', '.join(args)})"
+            return f"{self.label}({', '.join([str(arg) for arg in args])})"
         else:
             return self.label
 
@@ -104,10 +137,11 @@ class Rule(object):
                 else:
                     return ({**bindings, **res_bindings}, new_stack)
             return None
-        mat = inner_match(self.lhs, stack, {})
+        init_bindings = {name: name.value for name in _bound(self.rhs_names)}
+        mat = inner_match(self.lhs, stack, init_bindings)
         if mat:
             binding, new_stack = mat
-            return ([binding[name] for name in self.rhs_names], new_stack)
+            return [binding[name] for name in self.rhs_param]
         else:
             return None
 
@@ -115,7 +149,8 @@ class Rule(object):
         '''
         Given variable bindings, returns stack after unpacking RHS
         '''
-        binding = dict(zip(self.rhs_names, values))
+        binding = dict((*zip(self.rhs_param, values),
+                        *((x, x.value) for x in _bound(self.rhs_names))))
         for rule, *names in self.rhs:
             def arglist(item):
                 return isinstance(item, (tuple, list))
@@ -174,7 +209,13 @@ class FreeVar(Rule):
         
     @overrides
     def apply(self, values, stack):
-        return cons(values[0], stack)
+        try:
+            [value] = values
+            return cons(value, stack)
+        except:
+            for value in values:
+                stack = cons(value, stack)
+            return stack
 
     @overrides
     def _str(self, vars):
