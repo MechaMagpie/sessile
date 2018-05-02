@@ -84,7 +84,7 @@ class PrependableGenerator():
         if self.but_first:
             return self.but_first.pop()
         else:
-            return next(base_gen)
+            return next(self.base_gen)
 
     def __iter__(self):
         return self

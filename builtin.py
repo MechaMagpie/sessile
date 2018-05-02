@@ -116,9 +116,11 @@ def arith_processor(f = False):
             except:
                 b, a = (int(temp_stack.pop()), int(temp_stack.pop()))
                 fun = {'+': operator.add, '-': operator.sub, '*': operator.mul,
-                       '/': operator.div, '%': operator.mod, '^': operator.pow}
+                       '/': (operator.truediv if f else operator.floordiv),
+                       '%': operator.mod, '^': operator.pow}
                 temp_stack.append(fun[op](a, b))
-        return str(temp_stack.pop())
+        return cons(str(temp_stack.pop()), stack)
+    return eval_arith
 
 def arith_tester(f = False):
     def test_arith(self, stack):
@@ -138,9 +140,10 @@ def arith_tester(f = False):
             return ([expr], cdr(stack))
         except:
             return None
-arithmetic = BuiltInRule(name = 'arith', arity = 1, match = arith_tester(),
+    return test_arith
+arithmetic = BuiltInRule(name = 'arith', arity = any_arity, match = arith_tester(),
                          apply = arith_processor())
-float_arithmetic = BuiltInRule(name = 'arithf', arity = 1,
+float_arithmetic = BuiltInRule(name = 'arithf', arity = any_arity,
                                match = arith_tester(f = True),
                                apply = arith_processor(f = True))
 

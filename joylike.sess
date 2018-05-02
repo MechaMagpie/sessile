@@ -2,3 +2,8 @@ X "dup" -> X X
 X Y "swap" -> Y X
 X "pop" ->
 X "." -> print(X)
+X Y "+" -> arith(X, Y, "+")
+X Y "-" -> arith(X, Y, "-")
+X Y "/" -> arith(X, Y, "/")
+X Y "*" -> arith(X, Y, "*")
+X Y "%" -> arith(X, Y, "%")
