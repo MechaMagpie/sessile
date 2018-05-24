@@ -1,45 +1,6 @@
 import re
 from overrides import overrides
-
-def cons(item, tail):
-    return (item, tail)
-
-def car(list):
-    try:
-        head, _ = list
-        return head
-    except:
-        raise Exception('Null list')
-
-def cdr(list):
-    _, tail = list
-    return tail
-
-def flatten(list):
-    def linked_generator(list):
-        while list:
-            head, list = list
-            yield head
-    return tuple(linked_generator(list))
-
-def unflatten(flat_list):
-    def inner_unflatten(gen):
-        try:
-            elem = next(gen)
-            return (elem, inner_unflatten(gen))
-        except StopIteration:
-            return None
-    return inner_unflatten(elem for elem in flat_list)
-
-def take(n, list):
-    try:
-        head = []
-        for _ in range(n, 0, -1):
-            (elem, list) = list
-            head.append(elem)
-        return (tuple(reversed(head)), list)
-    except:
-        raise Exception('List too short')
+from linked_list import cons, car, cdr, flatten, unflatten, take
 
 class Var(object):
     hash_prefix = ''
@@ -67,7 +28,22 @@ class Bound(Var):
 
     def __str__(self):
         return f'"{self.value}"'
+
+def nextnum():
+    i = 0
+    while true:
+        i += 1
+        yield i
     
+class Blank(Var):
+    hash_prefix = '%'
+
+    def __init__(self):
+        self.value = str(nextnum())
+
+    def __str__(self):
+        return '_'
+
 def _unbound(ls):
     return [name for name in ls if isinstance(name, Unbound)]
 
@@ -222,3 +198,53 @@ class FreeVar(Rule):
     @overrides
     def _str(self, vars):
         return str(vars[0])
+
+class Anything(Rule):
+    def __init__(self):
+        self.arity = 0
+        self.choices = [self]
+
+    @overrides
+    def match(self, stack):
+        try:
+            return ([], cdr(stack))
+        except:
+            return None
+
+    @overrides
+    def apply(self, values, stack):
+        raise Exception('Null var on RHS')
+
+    @overrides
+    def _str(self, vars):
+        return '_'
+
+class CapturingChoice(Rule):
+    def __init__(self, label, *terminals):
+        self.label = label
+        self.arity = 1
+        self.choices = [self]
+        self.terminals = terminals
+
+    @overrides
+    def match(self, stack):
+        try:
+            head, stack = stack
+            assert(head in self.terminals)
+            return ([head], stack)
+        except:
+            return None
+
+    @overrides
+    def apply(self, values, stack):
+        raise Exception('Null var on RHS')
+
+    @overrides
+    def _str(self, vars):
+        [arg] = vars
+        return f"{self.label}({arg})"
+
+    @overrides
+    def __str__(self):
+        rule_body = ' | '.join(f'"{t}"' for t in terminals)
+        return self.label + ': ' + rule_body
